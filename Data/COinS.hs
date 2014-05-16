@@ -20,6 +20,7 @@ data COinS =
   COinS { referrerId   :: Maybe PairValue
         , infoDOI      :: Maybe PairValue
         , infoURL      :: Maybe PairValue
+        , rArtTitle    :: Maybe PairValue
         , rTitle       :: Maybe PairValue
         , rJTitle      :: Maybe PairValue
         , rShortJTitle :: Maybe PairValue
@@ -38,7 +39,7 @@ data COinS =
         , rAuInit1     :: Maybe PairValue
         , rAuInitM     :: Maybe PairValue
         , rAuSuffix    :: Maybe PairValue
-        , rAu          :: Maybe PairValue
+        , rAu          :: [PairValue]
         , rAuCorp      :: Maybe PairValue
         , rISBN        :: Maybe PairValue
         , rCoden       :: Maybe PairValue
@@ -48,7 +49,7 @@ data COinS =
         , rSsn         :: Maybe PairValue
         , rQuarter     :: Maybe PairValue
         , rPart        :: Maybe PairValue
-        }
+        } deriving (Eq, Show)
 
 ------------------------------------------------------------------------------
 -- |Interpretation of COinS value as usable article metadata
@@ -76,6 +77,7 @@ parseKeyValPair = do
   v <- (char ':' *> many (noneOf "&"))
   return (BS.pack k, BS.pack v)
 
+------------------------------------------------------------------------------
 unescapeCOinS :: BS.ByteString -> BS.ByteString
 unescapeCOinS = Text.encodeUtf8 .
                 foldl f id [("%20"," "),("%23","#"),("%25","%"),("%26","&")
@@ -83,8 +85,7 @@ unescapeCOinS = Text.encodeUtf8 .
                            ,("%3E",">"),("%3F","?"),("%3A",":")
                            ,("+"," "),("&amp;","&"),("%E2%80%94","―")] .
                 Text.decodeUtf8
-  where f :: (Text.Text -> Text.Text) -> (Text.Text, Text.Text) -> (Text.Text -> Text.Text)
-        f fAcc (tFrom,tTo) = fAcc . Text.replace tFrom tTo
+  where f fAcc (tFrom,tTo) = fAcc . Text.replace tFrom tTo
 
 
 parseEscapedCOinS :: String -> Either ParseError COinS
@@ -92,8 +93,41 @@ parseEscapedCOinS s = do
   p <- parse coinsParser "COinS string" s
   return $ pairsToCOinS p
 
+------------------------------------------------------------------------------
 pairsToCOinS :: [(BS.ByteString, BS.ByteString)] -> COinS
-pairsToCOinS = undefined
+pairsToCOinS p = COinS
+                 ((lookup "rfr_id=info" p) :: Maybe BS.ByteString)
+                 (lookup "rft_id=info" p)
+                 (lookup "rft_id=http" p)
+                 (lookup "rft.article" p)
+                 (lookup "rft.title" p)
+                 (lookup "rft.jtitle" p)
+                 (lookup "rft.stitle" p)
+                 (lookup "rft.date" p)
+                 (lookup "rft.volume" p)
+                 (lookup "rft.issue" p)
+                 (lookup "rft.spage" p)
+                 (lookup "rft.epage" p)
+                 (lookup "rft.pages" p)
+                 (lookup "rft.artnum" p)
+                 (lookup "rft.issn" p)
+                 (lookup "rft.eissn" p)
+                 (lookup "rft.aulast" p)
+                 (lookup "rft.aufirst" p)
+                 (lookup "rft.auinit" p)
+                 (lookup "rft.auinit1" p)
+                 (lookup "rft.auinitm" p)
+                 (lookup "rft.ausuffix" p)
+                 (map snd . filter ((=="rft.au") . fst) $ p) 
+                 (lookup "rft.aucorp" p)
+                 (lookup "rft.isbn" p)
+                 (lookup "rft.coden" p)
+                 (lookup "rft.sici" p)
+                 (lookup "rft.genre" p)
+                 (lookup "rft.chron" p)
+                 (lookup "rft.ssn" p)
+                 (lookup "rft.quarter" p)
+                 (lookup "rft.part" p)
 
 coinsParser :: Parsec String () [(BS.ByteString,BS.ByteString)]
 coinsParser = parsePair `sepBy` char '&'
